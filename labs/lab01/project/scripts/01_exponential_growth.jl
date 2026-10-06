@@ -8,6 +8,8 @@
 
 # ## Инициализация проекта и загрузка пакетов
 
+ENV["GKSwstype"] = "100"
+
 using DrWatson
 @quickactivate "project"
 

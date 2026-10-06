@@ -9,6 +9,8 @@
 ## Инициализация проекта и загрузка пакетов
 
 ```{julia}
+ENV["GKSwstype"] = "100"
+
 using DrWatson
 @quickactivate "project"
 
