@@ -106,7 +106,7 @@ $$
 
 ## Литературная версия базового эксперимента
 
-Документация Quarto сформирована автоматически и сохранена в файле `../project/markdown/sir_run_basic/sir_run_basic.qmd`.
+{{< include ../project/markdown/sir_run_basic/sir_run_basic.qmd >}}
 
 
 # Исследование коэффициента заразности
@@ -133,7 +133,7 @@ $$
 
 ## Литературная версия исследования
 
-Документация Quarto сформирована автоматически и сохранена в файле `../project/markdown/sir_scan_beta/sir_scan_beta.qmd`.
+{{< include ../project/markdown/sir_scan_beta/sir_scan_beta.qmd >}}
 
 
 # Гетерогенность городов
@@ -159,7 +159,7 @@ $$
 
 ## Литературная версия эксперимента
 
-Документация Quarto сформирована автоматически и сохранена в файле `../project/markdown/sir_heterogeneity/sir_heterogeneity.qmd`.
+{{< include ../project/markdown/sir_heterogeneity/sir_heterogeneity.qmd >}}
 
 
 # Влияние миграции
@@ -184,7 +184,7 @@ $$
 
 ## Литературная версия эксперимента
 
-Документация Quarto сформирована автоматически и сохранена в файле `../project/markdown/sir_migration_effect/sir_migration_effect.qmd`.
+{{< include ../project/markdown/sir_migration_effect/sir_migration_effect.qmd >}}
 
 
 # Карантинная мера
@@ -209,7 +209,7 @@ $$
 
 ## Литературная версия эксперимента
 
-Документация Quarto сформирована автоматически и сохранена в файле `../project/markdown/sir_quarantine/sir_quarantine.qmd`.
+{{< include ../project/markdown/sir_quarantine/sir_quarantine.qmd >}}
 
 
 # Оптимизация параметров
@@ -234,7 +234,7 @@ $$
 
 ## Литературная версия оптимизации
 
-Документация Quarto сформирована автоматически и сохранена в файле `../project/markdown/sir_optimize_parameters/sir_optimize_parameters.qmd`.
+{{< include ../project/markdown/sir_optimize_parameters/sir_optimize_parameters.qmd >}}
 
 
 # Сводная визуализация
@@ -253,7 +253,7 @@ $$
 
 ## Литературная версия визуализации
 
-Документация Quarto сформирована автоматически и сохранена в файле `../project/markdown/sir_visualize_dynamics/sir_visualize_dynamics.qmd`.
+{{< include ../project/markdown/sir_visualize_dynamics/sir_visualize_dynamics.qmd >}}
 
 
 # Генерация производных форматов
