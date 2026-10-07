@@ -1,0 +1,560 @@
+# Модель Лотки–Вольтерры
+
+**Автор:** Нечаева Кира Андреевна
+
+**Группа:** НКНбд-01-23
+
+Исследуется классическая система взаимодействия хищников и жертв.
+
+## Инициализация
+
+```{julia}
+ENV["GKSwstype"] = "100"
+
+using DrWatson
+@quickactivate "project"
+
+using DifferentialEquations
+using DataFrames
+using StatsPlots
+using LaTeXStrings
+using Plots
+using Statistics
+using FFTW
+
+script_name =
+    splitext(basename(PROGRAM_FILE))[1]
+
+mkpath(plotsdir(script_name))
+mkpath(datadir(script_name))
+```
+
+## Определение модели
+
+```{julia}
+function lotka_volterra!(du, u, p, t)
+
+    x, y = u
+    α, β, δ, γ = p
+
+    @inbounds begin
+        du[1] = α*x - β*x*y
+        du[2] = δ*x*y - γ*y
+    end
+
+    nothing
+end
+```
+
+## Параметры и начальные условия
+
+Параметры
+
+```{julia}
+p_lv = [
+    0.1,   # α
+    0.02,  # β
+    0.01,  # δ
+    0.3    # γ
+]
+
+u0_lv = [40.0, 9.0]
+
+tspan_lv = (0.0, 200.0)
+
+dt_lv = 0.01
+saveat_lv = 0.1
+```
+
+## Численное решение
+
+Задача
+
+```{julia}
+prob_lv =
+    ODEProblem(
+        lotka_volterra!,
+        u0_lv,
+        tspan_lv,
+        p_lv
+    )
+
+sol_lv =
+    solve(
+        prob_lv,
+        Tsit5();
+        dt=dt_lv,
+        reltol=1e-8,
+        abstol=1e-10,
+        saveat=saveat_lv,
+        dense=true
+    )
+```
+
+Таблица данных
+
+```{julia}
+df_lv = DataFrame()
+
+df_lv[!, :t] =
+    sol_lv.t
+
+df_lv[!, :prey] =
+    [u[1] for u in sol_lv.u]
+
+df_lv[!, :predator] =
+    [u[2] for u in sol_lv.u]
+
+df_lv[!, :dprey_dt] =
+    p_lv[1] .* df_lv.prey .-
+    p_lv[2] .* df_lv.prey .* df_lv.predator
+
+df_lv[!, :dpredator_dt] =
+    p_lv[3] .* df_lv.prey .* df_lv.predator .-
+    p_lv[4] .* df_lv.predator
+
+println("="^60)
+println("Модель Лотки–Вольтерры")
+println("="^60)
+
+println("\nПараметры:")
+println("α = ", p_lv[1])
+println("β = ", p_lv[2])
+println("δ = ", p_lv[3])
+println("γ = ", p_lv[4])
+
+println("\nНачальные условия:")
+println("Жертвы = ", u0_lv[1])
+println("Хищники = ", u0_lv[2])
+```
+
+Стационарная точка
+
+```{julia}
+x_star =
+    p_lv[4] / p_lv[3]
+
+y_star =
+    p_lv[1] / p_lv[2]
+
+println("\nСтационарная точка:")
+println("x* = ", round(x_star, digits=3))
+println("y* = ", round(y_star, digits=3))
+```
+
+## Анализ и визуализация
+
+1. Динамика
+
+```{julia}
+plt1 = plot(
+    df_lv.t,
+    hcat(
+        df_lv.prey,
+        df_lv.predator
+    ),
+    label=[
+        L"Жертвы\ (x)"
+        L"Хищники\ (y)"
+    ],
+    xlabel="Время",
+    ylabel="Популяция",
+    title="Лотка–Вольтерра: динамика популяций",
+    linewidth=2,
+    legend=:topright,
+    grid=true,
+    size=(900, 500)
+)
+
+hline!(
+    plt1,
+    [x_star],
+    linestyle=:dash,
+    label="x*"
+)
+
+hline!(
+    plt1,
+    [y_star],
+    linestyle=:dash,
+    label="y*"
+)
+```
+
+2. Фазовый портрет
+
+```{julia}
+plt2 = plot(
+    df_lv.prey,
+    df_lv.predator,
+    label="Фазовая траектория",
+    xlabel="Популяция жертв",
+    ylabel="Популяция хищников",
+    title="Фазовый портрет",
+    linewidth=1.5,
+    grid=true,
+    size=(800, 600)
+)
+
+scatter!(
+    plt2,
+    [x_star],
+    [y_star],
+    markersize=8,
+    label="Стационарная точка"
+)
+```
+
+Изоклины согласно формулам модели:
+dx/dt=0 -> y=α/β
+dy/dt=0 -> x=γ/δ
+
+```{julia}
+hline!(
+    plt2,
+    [y_star],
+    linestyle=:dash,
+    label="dx/dt = 0"
+)
+
+vline!(
+    plt2,
+    [x_star],
+    linestyle=:dash,
+    label="dy/dt = 0"
+)
+```
+
+3. Производные
+
+```{julia}
+plt3 = plot(
+    df_lv.t,
+    hcat(
+        df_lv.dprey_dt,
+        df_lv.dpredator_dt
+    ),
+    label=[
+        L"dx/dt"
+        L"dy/dt"
+    ],
+    xlabel="Время",
+    ylabel="Скорость изменения",
+    title="Производные популяций",
+    linewidth=1.5,
+    grid=true,
+    size=(900, 400)
+)
+
+hline!(
+    plt3,
+    [0],
+    color=:black,
+    label=false
+)
+```
+
+4. Относительные изменения
+
+```{julia}
+df_lv[!, :prey_pct_change] =
+    df_lv.dprey_dt ./ df_lv.prey .* 100
+
+df_lv[!, :predator_pct_change] =
+    df_lv.dpredator_dt ./ df_lv.predator .* 100
+
+plt4 = plot(
+    df_lv.t,
+    hcat(
+        df_lv.prey_pct_change,
+        df_lv.predator_pct_change
+    ),
+    label=[
+        "Жертвы"
+        "Хищники"
+    ],
+    xlabel="Время",
+    ylabel="Относительное изменение, %",
+    title="Относительные темпы роста",
+    linewidth=1.5,
+    grid=true,
+    size=(900, 400)
+)
+```
+
+## Спектральный анализ
+
+5. Спектральный анализ
+
+```{julia}
+function compute_fft(signal, sampling_dt)
+
+    n = length(signal)
+
+    spectrum =
+        abs.(rfft(signal))
+
+    freq =
+        rfftfreq(
+            n,
+            1 / sampling_dt
+        )
+
+    return freq, spectrum
+end
+
+freq_prey,
+spectrum_prey =
+    compute_fft(
+        df_lv.prey .-
+        mean(df_lv.prey),
+        saveat_lv
+    )
+
+freq_predator,
+spectrum_predator =
+    compute_fft(
+        df_lv.predator .-
+        mean(df_lv.predator),
+        saveat_lv
+    )
+
+plt5 = plot(
+    freq_prey[2:end],
+    hcat(
+        spectrum_prey[2:end],
+        spectrum_predator[2:end]
+    ),
+    label=[
+        "Жертвы"
+        "Хищники"
+    ],
+    xlabel="Частота",
+    ylabel="Амплитуда",
+    title="Спектральный анализ",
+    xscale=:log10,
+    yscale=:log10,
+    linewidth=1.5,
+    grid=true,
+    size=(800, 400)
+)
+
+idx_prey =
+    argmax(
+        spectrum_prey[2:end]
+    ) + 1
+
+dominant_freq_prey =
+    freq_prey[idx_prey]
+
+period_prey =
+    1 / dominant_freq_prey
+
+println(
+    "\nДоминирующая частота жертв: ",
+    round(
+        dominant_freq_prey,
+        digits=4
+    )
+)
+
+println(
+    "Период колебаний жертв: ",
+    round(
+        period_prey,
+        digits=2
+    )
+)
+```
+
+6. Общая панель
+
+```{julia}
+plt6 = plot(
+    layout=(3, 2),
+    size=(1200, 900)
+)
+
+plot!(
+    plt6[1],
+    df_lv.t,
+    df_lv.prey,
+    label="Жертвы",
+    title="Популяция жертв"
+)
+
+plot!(
+    plt6[2],
+    df_lv.t,
+    df_lv.predator,
+    label="Хищники",
+    title="Популяция хищников"
+)
+
+plot!(
+    plt6[3],
+    df_lv.prey,
+    df_lv.predator,
+    label=false,
+    title="Фазовый портрет"
+)
+
+plot!(
+    plt6[4],
+    df_lv.t,
+    hcat(
+        df_lv.dprey_dt,
+        df_lv.dpredator_dt
+    ),
+    label=["dx/dt" "dy/dt"],
+    title="Скорости изменения"
+)
+
+plot!(
+    plt6[5],
+    freq_prey[2:end],
+    spectrum_prey[2:end],
+    xscale=:log10,
+    yscale=:log10,
+    label="Жертвы",
+    title="Спектр"
+)
+
+plot!(
+    plt6[6],
+    df_lv.t,
+    hcat(
+        df_lv.prey_pct_change,
+        df_lv.predator_pct_change
+    ),
+    label=["Жертвы" "Хищники"],
+    title="Относительные изменения"
+)
+```
+
+## Анализ результатов
+
+Анализ результатов
+
+```{julia}
+println("\n" * "="^60)
+println("Анализ результатов")
+println("="^60)
+
+println(
+    "Жертвы: min=",
+    round(minimum(df_lv.prey),digits=2),
+    ", max=",
+    round(maximum(df_lv.prey),digits=2),
+    ", mean=",
+    round(mean(df_lv.prey),digits=2)
+)
+
+println(
+    "Хищники: min=",
+    round(minimum(df_lv.predator),digits=2),
+    ", max=",
+    round(maximum(df_lv.predator),digits=2),
+    ", mean=",
+    round(mean(df_lv.predator),digits=2)
+)
+
+function find_first_peak(signal, time)
+
+    for i in 2:length(signal)-1
+
+        if signal[i] > signal[i-1] &&
+           signal[i] > signal[i+1]
+
+            return time[i], signal[i]
+        end
+    end
+
+    return NaN, NaN
+end
+
+peak_time_prey,
+peak_value_prey =
+    find_first_peak(
+        df_lv.prey,
+        df_lv.t
+    )
+
+peak_time_predator,
+peak_value_predator =
+    find_first_peak(
+        df_lv.predator,
+        df_lv.t
+    )
+
+if !isnan(peak_time_prey) &&
+   !isnan(peak_time_predator)
+
+    phase_shift =
+        peak_time_predator -
+        peak_time_prey
+
+    println(
+        "\nПервый пик жертв: t=",
+        round(peak_time_prey,digits=2),
+        ", значение=",
+        round(peak_value_prey,digits=2)
+    )
+
+    println(
+        "Первый пик хищников: t=",
+        round(peak_time_predator,digits=2),
+        ", значение=",
+        round(peak_value_predator,digits=2)
+    )
+
+    println(
+        "Сдвиг фаз: ",
+        round(phase_shift,digits=2)
+    )
+end
+```
+
+Сохранение
+
+```{julia}
+savefig(
+    plt1,
+    plotsdir(script_name, "lv_dynamics.png")
+)
+
+savefig(
+    plt2,
+    plotsdir(script_name, "lv_phase_portrait.png")
+)
+
+savefig(
+    plt3,
+    plotsdir(script_name, "lv_derivatives.png")
+)
+
+savefig(
+    plt4,
+    plotsdir(script_name, "lv_relative_changes.png")
+)
+
+savefig(
+    plt5,
+    plotsdir(script_name, "lv_spectrum.png")
+)
+
+savefig(
+    plt6,
+    plotsdir(script_name, "lv_panel.png")
+)
+
+println(
+    "\nМоделирование завершено успешно!"
+)
+```
+
+## Вывод
+
+Модель демонстрирует циклическое взаимодействие популяций
+и запаздывание динамики хищников относительно жертв.
+
