@@ -1,0 +1,215 @@
+ENV["GKSwstype"] = "100"
+
+using DrWatson
+@quickactivate "project"
+
+using DifferentialEquations
+using DataFrames
+using Plots
+using CSV
+using JLD2
+
+script_name =
+    splitext(basename(PROGRAM_FILE))[1]
+
+mkpath(plotsdir(script_name))
+mkpath(datadir(script_name))
+
+function lotka_volterra!(du, u, p, t)
+
+    x, y = u
+    α, β, δ, γ = p
+
+    du[1] = α*x - β*x*y
+    du[2] = δ*x*y - γ*y
+
+    nothing
+end
+
+u0 = [40.0, 9.0]
+tspan = (0.0, 200.0)
+
+β = 0.02
+δ = 0.01
+
+α_values =
+    [0.05, 0.1, 0.2, 0.3]
+
+γ_values =
+    [0.1, 0.3, 0.5, 0.7]
+
+results = DataFrame(
+    scan=String[],
+    value=Float64[],
+    prey_final=Float64[],
+    predator_final=Float64[],
+    prey_max=Float64[],
+    predator_max=Float64[]
+)
+
+plt_alpha = plot(
+    layout=(2,1),
+    size=(900,700)
+)
+
+for α in α_values
+
+    p = [α, β, δ, 0.3]
+
+    prob =
+        ODEProblem(
+            lotka_volterra!,
+            u0,
+            tspan,
+            p
+        )
+
+    sol =
+        solve(
+            prob,
+            Tsit5();
+            saveat=0.1
+        )
+
+    prey =
+        [u[1] for u in sol.u]
+
+    predator =
+        [u[2] for u in sol.u]
+
+    push!(
+        results,
+        (
+            "alpha",
+            α,
+            prey[end],
+            predator[end],
+            maximum(prey),
+            maximum(predator)
+        )
+    )
+
+    plot!(
+        plt_alpha[1],
+        sol.t,
+        prey,
+        label="α=$α",
+        linewidth=2,
+        title="Влияние α на жертв",
+        ylabel="Жертвы"
+    )
+
+    plot!(
+        plt_alpha[2],
+        sol.t,
+        predator,
+        label="α=$α",
+        linewidth=2,
+        title="Влияние α на хищников",
+        xlabel="Время",
+        ylabel="Хищники"
+    )
+end
+
+plt_gamma = plot(
+    layout=(2,1),
+    size=(900,700)
+)
+
+for γ in γ_values
+
+    p = [0.1, β, δ, γ]
+
+    prob =
+        ODEProblem(
+            lotka_volterra!,
+            u0,
+            tspan,
+            p
+        )
+
+    sol =
+        solve(
+            prob,
+            Tsit5();
+            saveat=0.1
+        )
+
+    prey =
+        [u[1] for u in sol.u]
+
+    predator =
+        [u[2] for u in sol.u]
+
+    push!(
+        results,
+        (
+            "gamma",
+            γ,
+            prey[end],
+            predator[end],
+            maximum(prey),
+            maximum(predator)
+        )
+    )
+
+    plot!(
+        plt_gamma[1],
+        sol.t,
+        prey,
+        label="γ=$γ",
+        linewidth=2,
+        title="Влияние γ на жертв",
+        ylabel="Жертвы"
+    )
+
+    plot!(
+        plt_gamma[2],
+        sol.t,
+        predator,
+        label="γ=$γ",
+        linewidth=2,
+        title="Влияние γ на хищников",
+        xlabel="Время",
+        ylabel="Хищники"
+    )
+end
+
+println(
+    "Параметрическое исследование Лотки–Вольтерры:\n"
+)
+
+println(results)
+
+savefig(
+    plt_alpha,
+    plotsdir(
+        script_name,
+        "lv_alpha_scan.png"
+    )
+)
+
+savefig(
+    plt_gamma,
+    plotsdir(
+        script_name,
+        "lv_gamma_scan.png"
+    )
+)
+
+CSV.write(
+    datadir(
+        script_name,
+        "lv_parameter_scan.csv"
+    ),
+    results
+)
+
+@save datadir(
+    script_name,
+    "lv_parameter_scan.jld2"
+) results
+
+println(
+    "\nПараметрическое исследование завершено."
+)
