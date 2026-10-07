@@ -1,0 +1,261 @@
+# Влияние миграции на эпидемию
+
+**Автор:** Нечаева Кира Андреевна
+
+**Группа:** НКНбд-01-23
+
+```{julia}
+ENV["GKSwstype"] = "100"
+
+using DrWatson
+@quickactivate "project"
+
+using DataFrames
+using Plots
+using CSV
+using Statistics
+
+include(
+    srcdir("sir_model.jl")
+)
+```
+
+## Матрица миграции
+
+```{julia}
+function create_migration_matrix(
+    C,
+    intensity
+)
+
+    M =
+        fill(
+            intensity / (C - 1),
+            C,
+            C
+        )
+
+    for i in 1:C
+        M[i, i] =
+            1 - intensity
+    end
+
+    return M
+end
+```
+
+## Один эксперимент
+
+```{julia}
+function measure_peak(
+    intensity,
+    seed
+)
+
+    initial_total = 3000
+
+    model =
+        initialize_sir(
+            Ns=[1000, 1000, 1000],
+            β_und=[0.5, 0.5, 0.5],
+            β_det=[0.05, 0.05, 0.05],
+            infection_period=14,
+            detection_time=7,
+            death_rate=0.02,
+            reinfection_probability=0.1,
+            Is=[1, 0, 0],
+            seed=seed,
+            migration_rates=
+                create_migration_matrix(
+                    3,
+                    intensity
+                )
+        )
+
+    peak_value = 0.0
+    peak_day = 0
+
+    for day in 1:150
+
+        sir_manual_step!(
+            model
+        )
+
+        fraction =
+            infected_count(model) /
+            initial_total
+
+        if fraction > peak_value
+
+            peak_value =
+                fraction
+
+            peak_day =
+                day
+        end
+    end
+
+    return (
+        peak_time=peak_day,
+        peak_value=peak_value
+    )
+end
+```
+
+## Сканирование интенсивности миграции
+
+```{julia}
+intensities =
+    0.0:0.1:0.5
+
+seeds =
+    [42, 43, 44]
+
+results =
+    NamedTuple[]
+
+println(
+    "Исследование миграции..."
+)
+
+for intensity in intensities
+
+    for seed in seeds
+
+        result =
+            measure_peak(
+                intensity,
+                seed
+            )
+
+        push!(
+            results,
+            (
+                migration_intensity=intensity,
+                seed=seed,
+                peak_time=result.peak_time,
+                peak_value=result.peak_value
+            )
+        )
+
+        println(
+            "migration = ",
+            intensity,
+            ", seed = ",
+            seed,
+            " — готово"
+        )
+    end
+end
+
+df =
+    DataFrame(
+        results
+    )
+
+CSV.write(
+    datadir(
+        "migration_scan_all.csv"
+    ),
+    df
+)
+
+grouped =
+    combine(
+        groupby(
+            df,
+            :migration_intensity
+        ),
+
+        :peak_time =>
+            mean =>
+            :mean_peak_time,
+
+        :peak_value =>
+            mean =>
+            :mean_peak_value
+    )
+
+sort!(
+    grouped,
+    :migration_intensity
+)
+```
+
+## Ищем минимальное время до пика
+
+```{julia}
+best_index =
+    argmin(
+        grouped.mean_peak_time
+    )
+
+println(
+    "\nМинимальное среднее время до пика: ",
+    round(
+        grouped.mean_peak_time[
+            best_index
+        ],
+        digits=2
+    ),
+    " дней"
+)
+
+println(
+    "Интенсивность миграции: ",
+    grouped.migration_intensity[
+        best_index
+    ]
+)
+```
+
+## Графики
+
+```{julia}
+p1 =
+    plot(
+        grouped.migration_intensity,
+        grouped.mean_peak_time;
+        marker=:circle,
+        xlabel="Интенсивность миграции",
+        ylabel="Дни",
+        label="Время до пика",
+        linewidth=2
+    )
+
+p2 =
+    plot(
+        grouped.migration_intensity,
+        grouped.mean_peak_value .* 3000;
+        marker=:square,
+        xlabel="Интенсивность миграции",
+        ylabel="Инфицированные",
+        label="Численность в пике",
+        linewidth=2
+    )
+
+p =
+    plot(
+        p1,
+        p2;
+        layout=(2, 1),
+        size=(800, 700)
+    )
+
+savefig(
+    p,
+    plotsdir(
+        "migration_effect.png"
+    )
+)
+
+println("\nСохранено:")
+println("data/migration_scan_all.csv")
+println("plots/migration_effect.png")
+```
+
+## Вывод
+
+Эксперимент сравнивает момент и масштаб
+эпидемического пика при разной мобильности.
+

@@ -1,0 +1,125 @@
+ENV["GKSwstype"] = "100"
+
+using DrWatson
+@quickactivate "project"
+
+using DataFrames
+using CSV
+using Statistics
+using Plots
+
+input_file =
+    datadir(
+        "beta_scan_all.csv"
+    )
+
+if !isfile(input_file)
+
+    error(
+        "Файл beta_scan_all.csv не найден."
+    )
+end
+
+df =
+    CSV.read(
+        input_file,
+        DataFrame
+    )
+
+println(
+    "Загружено строк: ",
+    nrow(df)
+)
+
+grouped =
+    combine(
+        groupby(
+            df,
+            :beta
+        ),
+
+        :peak =>
+            mean =>
+            :mean_peak,
+
+        :final_inf =>
+            mean =>
+            :mean_final_inf,
+
+        :final_rec =>
+            mean =>
+            :mean_final_rec,
+
+        :deaths =>
+            mean =>
+            :mean_deaths
+    )
+
+sort!(
+    grouped,
+    :beta
+)
+
+p1 =
+    plot(
+        grouped.beta,
+        grouped.mean_peak;
+        label="Пик",
+        ylabel="Доля I",
+        linewidth=2,
+        marker=:circle
+    )
+
+plot!(
+    p1,
+    grouped.beta,
+    grouped.mean_final_inf;
+    label="Конечная I",
+    linewidth=2,
+    marker=:square
+)
+
+p2 =
+    plot(
+        grouped.beta,
+        grouped.mean_deaths;
+        label="Умершие",
+        ylabel="Число",
+        linewidth=2,
+        marker=:diamond
+    )
+
+p3 =
+    plot(
+        grouped.beta,
+        grouped.mean_final_rec;
+        label="Выздоровевшие",
+        xlabel="β",
+        ylabel="Доля R",
+        linewidth=2,
+        marker=:circle
+    )
+
+p =
+    plot(
+        p1,
+        p2,
+        p3;
+        layout=(3, 1),
+        size=(800, 900)
+    )
+
+savefig(
+    p,
+    plotsdir(
+        "comprehensive_analysis.png"
+    )
+)
+
+println(
+    "Сохранено:"
+)
+
+println(
+    "plots/comprehensive_analysis.png"
+)
