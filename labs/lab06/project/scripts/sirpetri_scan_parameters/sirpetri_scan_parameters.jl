@@ -1,0 +1,172 @@
+ENV["GKSwstype"] = "100"
+
+using DrWatson
+@quickactivate "project"
+
+using DataFrames
+using CSV
+using Plots
+
+include(
+    srcdir(
+        "SIRPetri.jl"
+    )
+)
+
+using .SIRPetri
+
+β_range =
+    collect(
+        0.1:0.05:0.8
+    )
+
+γ_fixed =
+    0.1
+
+tmax =
+    100.0
+
+results =
+    NamedTuple[]
+
+println(
+    "Сканирование коэффициента β..."
+)
+
+for β in β_range
+
+    net,
+    u0,
+    _ =
+        build_sir_network(
+            β,
+            γ_fixed
+        )
+
+    df =
+        simulate_deterministic(
+            net,
+            u0,
+            (
+                0.0,
+                tmax
+            );
+            saveat=0.5,
+            rates=[
+                β,
+                γ_fixed
+            ]
+        )
+
+    peak_index =
+        argmax(
+            df.I
+        )
+
+    peak_I =
+        df.I[
+            peak_index
+        ]
+
+    peak_time =
+        df.time[
+            peak_index
+        ]
+
+    final_R =
+        df.R[end]
+
+    push!(
+        results,
+        (
+            β=β,
+            peak_I=peak_I,
+            peak_time=peak_time,
+            final_R=final_R
+        )
+    )
+
+    println(
+        "β=",
+        round(
+            β,
+            digits=2
+        ),
+        " | peak I=",
+        round(
+            peak_I,
+            digits=3
+        ),
+        " | t_peak=",
+        round(
+            peak_time,
+            digits=3
+        ),
+        " | final R=",
+        round(
+            final_R,
+            digits=3
+        )
+    )
+end
+
+df_scan =
+    DataFrame(
+        results
+    )
+
+CSV.write(
+    datadir(
+        "sir_scan.csv"
+    ),
+    df_scan
+)
+
+p =
+    plot(
+        df_scan.β,
+        df_scan.peak_I;
+        label="Peak I",
+        marker=:circle,
+        xlabel="β",
+        ylabel="Численность",
+        title="Чувствительность SIR к β",
+        linewidth=2
+    )
+
+plot!(
+    p,
+    df_scan.β,
+    df_scan.final_R;
+    label="Final R",
+    marker=:circle,
+    linewidth=2
+)
+
+savefig(
+    p,
+    plotsdir(
+        "sir_scan.png"
+    )
+)
+
+println(
+    "\nСканирование завершено."
+)
+
+println(
+    "Строк в таблице: ",
+    nrow(df_scan)
+)
+
+println(
+    "Сохранено:"
+)
+
+println(
+    "data/sir_scan.csv"
+)
+
+println(
+    "plots/sir_scan.png"
+)

@@ -1,0 +1,138 @@
+# # Анимация динамики SIR
+#
+# **Автор:** Нечаева Кира Андреевна
+#
+# **Группа:** НКНбд-01-23
+#
+# Каждый кадр показывает текущую
+# маркировку S, I и R.
+
+ENV["GKSwstype"] = "100"
+
+using DrWatson
+@quickactivate "project"
+
+using DataFrames
+using Plots
+
+include(
+    srcdir(
+        "SIRPetri.jl"
+    )
+)
+
+using .SIRPetri
+
+
+# ## Параметры
+
+β =
+    0.3
+
+γ =
+    0.1
+
+tmax =
+    100.0
+
+
+# ## Детерминированная траектория
+
+net,
+u0,
+_ =
+    build_sir_network(
+        β,
+        γ
+    )
+
+df =
+    simulate_deterministic(
+        net,
+        u0,
+        (
+            0.0,
+            tmax
+        );
+        saveat=0.2,
+        rates=[
+            β,
+            γ
+        ]
+    )
+
+println(
+    "Получено точек: ",
+    nrow(df)
+)
+
+
+# ## Анимация
+#
+# Для GIF берём каждую пятую точку.
+# Сама траектория при этом рассчитана
+# с шагом сохранения 0.2.
+
+frame_indices =
+    1:5:nrow(df)
+
+anim =
+    @animate for index in frame_indices
+
+        values =
+            [
+                df.S[index],
+                df.I[index],
+                df.R[index]
+            ]
+
+        bar(
+            [
+                "S",
+                "I",
+                "R"
+            ],
+            values;
+            legend=false,
+            ylim=(
+                0,
+                1000
+            ),
+            xlabel="Состояние",
+            ylabel="Численность",
+            title=
+                "SIR, t = " *
+                string(
+                    round(
+                        df.time[index],
+                        digits=1
+                    )
+                ),
+            size=(
+                800,
+                550
+            )
+        )
+    end
+
+gif(
+    anim,
+    plotsdir(
+        "sir_animation.gif"
+    );
+    fps=10
+)
+
+println(
+    "\nАнимация сохранена:"
+)
+
+println(
+    "plots/sir_animation.gif"
+)
+
+
+# ## Вывод
+#
+# GIF показывает изменение маркировки
+# сети Петри на протяжении эпидемии.

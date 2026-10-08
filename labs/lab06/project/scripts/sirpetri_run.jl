@@ -1,0 +1,275 @@
+# # Базовый эксперимент SIR в сети Петри
+#
+# **Автор:** Нечаева Кира Андреевна
+#
+# **Группа:** НКНбд-01-23
+#
+# Выполняется сравнение детерминированной
+# и стохастической динамики одной модели.
+
+ENV["GKSwstype"] = "100"
+
+using DrWatson
+@quickactivate "project"
+
+using Random
+using DataFrames
+using CSV
+using Plots
+
+include(
+    srcdir(
+        "SIRPetri.jl"
+    )
+)
+
+using .SIRPetri
+
+
+# ## Параметры
+
+β =
+    0.3
+
+γ =
+    0.1
+
+tmax =
+    100.0
+
+seed =
+    123
+
+println(
+    "Базовый эксперимент SIR"
+)
+
+println(
+    "β = ",
+    β
+)
+
+println(
+    "γ = ",
+    γ
+)
+
+println(
+    "tmax = ",
+    tmax
+)
+
+
+# ## Построение сети
+
+net,
+u0,
+states =
+    build_sir_network(
+        β,
+        γ
+    )
+
+println(
+    "Начальная маркировка: ",
+    u0
+)
+
+
+# ## Детерминированная симуляция
+
+df_det =
+    simulate_deterministic(
+        net,
+        u0,
+        (
+            0.0,
+            tmax
+        );
+        saveat=0.5,
+        rates=[
+            β,
+            γ
+        ]
+    )
+
+CSV.write(
+    datadir(
+        "sir_det.csv"
+    ),
+    df_det
+)
+
+peak_det_index =
+    argmax(
+        df_det.I
+    )
+
+peak_det =
+    df_det.I[
+        peak_det_index
+    ]
+
+peak_det_time =
+    df_det.time[
+        peak_det_index
+    ]
+
+println(
+    "\nДетерминированная модель:"
+)
+
+println(
+    "Пик I = ",
+    round(
+        peak_det,
+        digits=3
+    )
+)
+
+println(
+    "Время пика = ",
+    round(
+        peak_det_time,
+        digits=3
+    )
+)
+
+println(
+    "Финальное R = ",
+    round(
+        df_det.R[end],
+        digits=3
+    )
+)
+
+p_det =
+    plot_sir(
+        df_det;
+        title=
+            "Детерминированная динамика SIR"
+    )
+
+savefig(
+    p_det,
+    plotsdir(
+        "sir_det_dynamics.png"
+    )
+)
+
+
+# ## Стохастическая симуляция
+
+rng =
+    MersenneTwister(
+        seed
+    )
+
+df_stoch =
+    simulate_stochastic(
+        net,
+        u0,
+        (
+            0.0,
+            tmax
+        );
+        rates=[
+            β,
+            γ
+        ],
+        rng=rng
+    )
+
+CSV.write(
+    datadir(
+        "sir_stoch.csv"
+    ),
+    df_stoch
+)
+
+peak_stoch_index =
+    argmax(
+        df_stoch.I
+    )
+
+peak_stoch =
+    df_stoch.I[
+        peak_stoch_index
+    ]
+
+peak_stoch_time =
+    df_stoch.time[
+        peak_stoch_index
+    ]
+
+println(
+    "\nСтохастическая модель:"
+)
+
+println(
+    "Пик I = ",
+    peak_stoch
+)
+
+println(
+    "Время пика = ",
+    round(
+        peak_stoch_time,
+        digits=3
+    )
+)
+
+println(
+    "Финальное R = ",
+    df_stoch.R[end]
+)
+
+println(
+    "Число событий = ",
+    nrow(df_stoch) - 1
+)
+
+p_stoch =
+    plot_sir(
+        df_stoch;
+        title=
+            "Стохастическая динамика SIR"
+    )
+
+savefig(
+    p_stoch,
+    plotsdir(
+        "sir_stoch_dynamics.png"
+    )
+)
+
+
+# ## Результаты
+
+println(
+    "\nСохранено:"
+)
+
+println(
+    "data/sir_det.csv"
+)
+
+println(
+    "data/sir_stoch.csv"
+)
+
+println(
+    "plots/sir_det_dynamics.png"
+)
+
+println(
+    "plots/sir_stoch_dynamics.png"
+)
+
+
+# ## Вывод
+#
+# Детерминированная модель показывает
+# усреднённую непрерывную динамику,
+# а алгоритм Гиллеспи моделирует
+# отдельные случайные события.
