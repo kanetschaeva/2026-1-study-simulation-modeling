@@ -1,0 +1,112 @@
+# Дискретно-событийная модель SIR
+
+**Автор:** Нечаева Кира Андреевна
+
+**Группа:** НКНбд-01-23
+
+В этом эксперименте выполняется базовый
+запуск дискретно-событийной SIR-модели.
+
+```julia
+using DrWatson
+@quickactivate "project"
+
+include(
+    srcdir(
+        "sir_model.jl"
+    )
+)
+
+using Random, StatsPlots, BenchmarkTools
+```
+
+## Параметры модели
+
+```julia
+tmax =
+    40.0
+
+u0 =
+    [
+        990,
+        10,
+        0
+    ]
+
+p =
+    [
+        0.05,
+        10.0,
+        0.25
+    ]
+
+Random.seed!(
+    1234
+)
+```
+
+## Запуск модели
+
+```julia
+des_model =
+    MakeSIRModel(
+        u0,
+        p
+    )
+
+activate(
+    des_model
+)
+
+sir_run(
+    des_model,
+    tmax
+)
+
+data_des =
+    out(
+        des_model
+    )
+```
+
+## Визуализация
+
+```julia
+@df data_des plot(
+    :t,
+    [
+        :S :I :R
+    ],
+    labels=[
+        "S" "I" "R"
+    ],
+    xlab="Время",
+    ylab="Численность",
+    title=
+        "Дискретно-событийная SIR модель",
+)
+
+savefig(
+    plotsdir(
+        "sir_des.png"
+    )
+)
+```
+
+## Сохранение результатов в CSV
+
+```julia
+using CSV, Dates
+
+filename =
+    "sir_$(u0[1])_$(u0[2])_$(p[1])_$(p[2])_$(p[3]).csv"
+
+CSV.write(
+    datadir(
+        "sims",
+        filename
+    ),
+    data_des
+)
+```
+
